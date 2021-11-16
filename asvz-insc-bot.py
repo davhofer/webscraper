@@ -129,8 +129,6 @@ def main(args):
         time.sleep(7)
         # accept button
         elem = driver.find_element_by_xpath("//button[@name='_eventId_proceed']")
-        print("elementId_proceed element: ")
-        print(elem)
         elem.click()
         time.sleep(7)
 
@@ -161,11 +159,6 @@ def main(args):
                 "Completed successfully, but please check manually if you got a spot."
             )
 
-            # print("Could not register!")
-            # f = open("register-dump-" + str(lesson_num) + ".html", "w+")
-            # f.write(driver.page_source)
-            # f.close()
-            # print("on", driver.title)
         except:
             print("ERROR")
 
