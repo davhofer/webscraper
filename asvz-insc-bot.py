@@ -21,14 +21,13 @@ def main(args):
         print("---- Help ----")
         print()
         print(
-            "use: 'python3 asvz-insc-bot.py' to run the program, after that \nthe user will be prompted to enter the lesson number and his credentials."
+            "use: 'python3 asvz-insc-bot.py' to run the program, after that the user will be prompted to enter the lesson number and his credentials."
         )
         print()
-        print(
-            "use: 'python3 asvz-insc-bot.py demo' to display the automated \nwebbrowser while the programm is running."
-        )
-        print()
-        print("add the optional argument --help for help.")
+        print("optional arguments:")
+        print("--demo               use this argument to display the automated webbrowser while the programm is running.")
+        print("--specify-path       use this argument to be able to input a specific path to the chromedriver executable. otherwise, it will be looked for in the system path.")
+        print("--help               for help.")
         print()
         return
 
@@ -37,16 +36,28 @@ def main(args):
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.common.keys import Keys
 
-    CHROMEDRIVER_PATH = "/usr/local/bin/chromedriver"
+
+    # chromedriver path on my personal linux laptop
+    CHROMEDRIVER_PATH_LINUX = "/usr/local/bin/chromedriver"
 
     chrome_options = Options()
-    if len(args) < 2 or args[1] != "demo":
+    if '--demo' not in args:
         chrome_options.add_argument("--headless")
     chrome_options.add_argument("--incognito")
     chrome_options.add_argument("--no-sandbox")
 
-    driver = webdriver.Chrome(options=chrome_options, executable_path=CHROMEDRIVER_PATH)
-
+    try:
+        if '--specify-path' in args:
+            CHROMEDRIVER_PATH = input("Please specify the file path to chromedriver:")
+            driver = webdriver.Chrome(options=chrome_options, executable_path=CHROMEDRIVER_PATH)
+        else:
+            driver = webdriver.Chrome(options=chrome_options)
+    except Exception as e:
+        print(e)
+        print(e.message)
+        print()
+        print("Please make sure that the chromedriver executable is in path or specify a path")
+        return
     print("")
     print("")
     lesson_num = input("ASVZ lesson number: ")
