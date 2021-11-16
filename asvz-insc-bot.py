@@ -46,20 +46,23 @@ def main(args):
     chrome_options.add_argument("--incognito")
     chrome_options.add_argument("--no-sandbox")
 
+    
+    
+    
     try:
         if '--specify-path' in args:
             CHROMEDRIVER_PATH = input("Please specify the file path to chromedriver:")
+            print()
             driver = webdriver.Chrome(options=chrome_options, executable_path=CHROMEDRIVER_PATH)
         else:
-            driver = webdriver.Chrome(options=chrome_options)
+            driver = webdriver.Chrome(options=chrome_options, executable_path="./chromedriver")
     except Exception as e:
-        print(e)
-        print(e.message)
-        print()
-        print("Please make sure that the chromedriver executable is in path or specify a path")
+        print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python file or you specified the correct path.")
         return
     print("")
     print("")
+    print("Make sure to place the chromedriver file for your version of chrome in the same folder as this python file, or specify the path to it with --specify-path")
+    print()
     lesson_num = input("ASVZ lesson number: ")
     username = input("NETHZ username: ")
     password = getpass.getpass("Password: ")
