@@ -30,6 +30,7 @@ def main(args):
         print()
         print("optional arguments:")
         print("--demo               use this argument to display the automated webbrowser while the programm is running.")
+        print("--raspbian           to run in production environment on raspberry pi.")
         print("--specify-path       use this argument to be able to input a specific path to the chromedriver executable. otherwise, it will be looked for in the system path.")
         print("--help               for help.")
         print()
@@ -59,7 +60,10 @@ def main(args):
     
     
     try:
-        if '--specify-path' in args:
+        if '--raspbian' in args:
+            subprocess.check_call(['sudo','apt-get','install','chromium-chromedriver'])
+            driver = webdriver.Chrome(options=chrome_options)
+        elif '--specify-path' in args:
             CHROMEDRIVER_PATH = input("Please specify the file path to chromedriver:")
             print()
             driver = webdriver.Chrome(options=chrome_options, executable_path=CHROMEDRIVER_PATH)
@@ -69,7 +73,7 @@ def main(args):
         print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or you specified the correct path.")
         return
 
-    def explicitWait(xpath,condition="clickable",timeout=15):
+    def explicitWait(xpath,condition="clickable",timeout=30):
         # case: condition == "clickable"
         func = EC.element_to_be_clickable
         if condition == "present":
