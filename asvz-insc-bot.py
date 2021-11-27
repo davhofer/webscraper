@@ -12,8 +12,12 @@ import re
 
 import getpass
 
+from multiprocessing import Process
+
+
 
 # make sure to download the right version of chromedriver for your version of Google Chrome, and specify the correct path to the file
+
 
 
 def main(args):
@@ -35,6 +39,11 @@ def main(args):
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.common.keys import Keys
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC 
+
+        
 
 
     # chromedriver path on my personal linux laptop
@@ -57,11 +66,21 @@ def main(args):
         else:
             driver = webdriver.Chrome(options=chrome_options, executable_path="./chromedriver")
     except Exception as e:
-        print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python file or you specified the correct path.")
+        print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or you specified the correct path.")
         return
+
+    def explicitWait(xpath,condition="clickable",timeout=15):
+        # case: condition == "clickable"
+        func = EC.element_to_be_clickable
+        if condition == "present":
+            func = EC.presence_of_element_located
+            
+        return WebDriverWait(driver, timeout).until(func((By.XPATH, xpath)))
+
+
     print("")
     print("")
-    print("Make sure to place the chromedriver file for your version of chrome in the same folder as this python file, or specify the path to it with --specify-path")
+    print("Make sure to place the chromedriver file for your version of chrome in the same folder as this python script, or specify the path to it with --specify-path <path>")
     print()
     lesson_num = input("ASVZ lesson number: ")
     username = input("NETHZ username: ")
@@ -75,8 +94,18 @@ def main(args):
 
     # goto main lesson page
     driver.get(link)
-    time.sleep(2)
-
+    
+    # instead of:
+    #time.sleep(2)
+    # use:
+    try:
+        # elem = driver.find_element_by_xpath(
+        # "//button[@class='btn btn-default ng-star-inserted']"
+    #)
+        elem = explicitWait("//button[@class='btn btn-default ng-star-inserted']")
+    except:
+        print("Timeout exception when waiting for lesson page")
+        return
     # get time when enrollment opens
     html = driver.page_source
     r = "Datum/Zeit.*\n.*"
@@ -93,74 +122,164 @@ def main(args):
     )
 
     # login
-    elem = driver.find_element_by_xpath(
-        "//button[@class='btn btn-default ng-star-inserted']"
-    )
+    
     elem.click()
-    time.sleep(2)
+    #time.sleep(2)
 
     # SWITCH AAI
-    elem = driver.find_element_by_xpath("//button[@name='provider']")
+    try:
+        #elem = driver.find_element_by_xpath("//button[@name='provider']")
+        elem = explicitWait("//button[@name='provider']")
+    except:
+        print("Timeout exception when waiting for SWITCH AAI")
+        return
 
     elem.click()
-    time.sleep(2)
+    #time.sleep(2)
 
     # select institution
-    elem = driver.find_element_by_xpath("//input[@id='userIdPSelection_iddtext']")
+    try:
+        elem = explicitWait("//input[@id='userIdPSelection_iddtext']")
+    except:
+        print("Timeout exception waiting for institution")
+        return
+    #elem = driver.find_element_by_xpath("//input[@id='userIdPSelection_iddtext']")
     elem.click()
     elem.send_keys("ETH Zürich")
     elem.send_keys(Keys.ENTER)
-    time.sleep(2)
+    #time.sleep(2)
 
     # enter accoutn data
-    elem = driver.find_element_by_xpath("//input[@id='username']")
+    try:
+        elem = explicitWait("//input[@id='username']")
+    except:
+        print("Timeout exception waiting for username input field")
+        return
+    #elem = driver.find_element_by_xpath("//input[@id='username']")
     elem.click()
     elem.send_keys(username)
 
-    elem = driver.find_element_by_xpath("//input[@id='password']")
+    try:
+        elem = explicitWait("//input[@id='password']")
+    except:
+        print("Timeout exception waiting for password input field")
+        return
+    #elem = driver.find_element_by_xpath("//input[@id='password']")
     elem.click()
     elem.send_keys(password)
 
     elem.send_keys(Keys.ENTER)
-    time.sleep(2)
+    #time.sleep(2)
 
-    # either will have to accept some agreement or not (get redirected back to lesson page directly)
-    try:
-        time.sleep(7)
-        # accept button
-        elem = driver.find_element_by_xpath("//button[@name='_eventId_proceed']")
-        elem.click()
-        time.sleep(7)
 
-        # wait until enrollment opens
-        if datetime.datetime.now() < t:
-            print("Waiting for enrollment to open...")
-        while datetime.datetime.now() < t:
-            time.sleep(0.7)
 
-        # register
-        elem = driver.find_element_by_xpath("//button[@id='btnRegister']")
-        elem.click()
 
-        print("Completed successfully, but please check manually if you got a spot.")
-
-    except:
+    def f1():
         try:
-            # wait until enrollment opens
+            explicitWait("//button[@id='btnRegister']",condition="present",timeout=30)
+        except:
+            print("Timeout exception: waiting for register button")
+
+    def f2():
+        try:
+            explicitWait("//button[@name='_eventId_proceed']",condition="present",timeout=30)
+        except:
+            print("Timeout exception: waiting for accept button")
+
+    p1 = Process(target=f1)
+    p2 = Process(target=f2)
+
+    p1.start()
+    p2.start()
+
+
+    for i in range(20):
+
+        # check if either process has finished, react accordingly
+        if not p1.is_alive():
+            p1.join()
+            p2.terminate()
+            p2.join()
+
+            if datetime.datetime.now() < t:
+                print("Waiting for enrollment to open...")
+            while datetime.datetime.now() < t:
+                time.sleep(0.5)
+
+            elem = explicitWait("//button[@id='btnRegister']")
+            elem.click()
+            print("Completed successfully, but please check manually if you got a spot.")
+
+            return
+
+        if not p2.is_alive():
+            p2.join()
+            p1.terminate()
+            p1.join()
+
+            elem = explicitWait("//button[@name='_eventId_proceed']")
+            elem.click()
+
             if datetime.datetime.now() < t:
                 print("Waiting for enrollment to open...")
             while datetime.datetime.now() < t:
                 time.sleep(0.7)
 
-            # register
-            elem = driver.find_element_by_xpath("//button[@id='btnRegister']")
+            elem = explicitWait("//button[@id='btnRegister']")
             elem.click()
-            print(
-                "Completed successfully, but please check manually if you got a spot."
-            )
 
-        except:
-            print("ERROR")
+            print("Completed successfully, but please check manually if you got a spot.")
+
+            return 
+
+        time.sleep(1)
+    
+    print("Error: Did not reach signup page!")
+
+            
+
+
+    # # either will have to accept some agreement or not (get redirected back to lesson page directly)
+    # try:
+    #     #time.sleep(7)
+    #     # accept button
+
+    #     elem = explicitWait("//button[@name='_eventId_proceed']")
+    #     #elem = driver.find_element_by_xpath("//button[@name='_eventId_proceed']")
+    #     elem.click()
+    #     #time.sleep(7)
+
+    #     # wait until enrollment opens
+    #     if datetime.datetime.now() < t:
+    #         print("Waiting for enrollment to open...")
+    #     while datetime.datetime.now() < t:
+    #         time.sleep(0.7)
+
+    #     # register
+    #     elem = explicitWait("//button[@id='btnRegister']")
+    #     #elem = driver.find_element_by_xpath("//button[@id='btnRegister']")
+    #     elem.click()
+
+    #     print("Completed successfully, but please check manually if you got a spot.")
+
+    # except:
+    #     try:
+    #         # wait until enrollment opens
+    #         if datetime.datetime.now() < t:
+    #             print("Waiting for enrollment to open...")
+    #         while datetime.datetime.now() < t:
+    #             time.sleep(0.7)
+
+    #         # register
+    #         elem = explicitWait("//button[@id='btnRegister']")
+    #         #elem = driver.find_element_by_xpath("//button[@id='btnRegister']")
+    #         elem.click()
+    #         print(
+    #             "Completed successfully, but please check manually if you got a spot."
+    #         )
+
+    #     except:
+    #         print("ERROR")
 
 
 main(sys.argv)
