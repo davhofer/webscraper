@@ -32,6 +32,15 @@ def asvz_signup(args,lesson_num,username,password):
         print()
         return
 
+
+    if (username==None or password==None):
+        if ('-u' in args and '-p' in args):
+            username = args[args.index('-u')+1]
+            username = args[args.index('-p')+1]
+        else:
+            raise Exception('Username and password must be specified!')
+
+
     subprocess.check_call([sys.executable, "-m", "pip", "install", "selenium"])
     from selenium import webdriver
     from selenium.webdriver.chrome.options import Options
@@ -61,8 +70,8 @@ def asvz_signup(args,lesson_num,username,password):
         else:
             driver = webdriver.Chrome(options=chrome_options, executable_path="./chromedriver")
     except Exception as e:
-        print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or specified in PATH.")
-        return
+        raise Exception("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or specified in PATH.")
+        
 
     def explicitWait(xpath,condition="clickable",timeout=30):
         # case: condition == "clickable"
@@ -117,8 +126,8 @@ def asvz_signup(args,lesson_num,username,password):
         #elem = driver.find_element_by_xpath("//button[@name='provider']")
         elem = explicitWait("//button[@name='provider']")
     except:
-        print("Timeout exception when waiting for SWITCH AAI")
-        return
+        raise Exception("Timeout exception when waiting for SWITCH AAI")
+        
 
     elem.click()
     #time.sleep(2)
@@ -127,8 +136,8 @@ def asvz_signup(args,lesson_num,username,password):
     try:
         elem = explicitWait("//input[@id='userIdPSelection_iddtext']")
     except:
-        print("Timeout exception waiting for institution")
-        return
+        raise Exception("Timeout exception waiting for institution")
+        
     #elem = driver.find_element_by_xpath("//input[@id='userIdPSelection_iddtext']")
     elem.click()
     elem.send_keys("ETH Zürich")
@@ -139,8 +148,8 @@ def asvz_signup(args,lesson_num,username,password):
     try:
         elem = explicitWait("//input[@id='username']")
     except:
-        print("Timeout exception waiting for username input field")
-        return
+        raise Exception("Timeout exception waiting for username input field")
+        
     #elem = driver.find_element_by_xpath("//input[@id='username']")
     elem.click()
     elem.send_keys(username)
@@ -148,8 +157,8 @@ def asvz_signup(args,lesson_num,username,password):
     try:
         elem = explicitWait("//input[@id='password']")
     except:
-        print("Timeout exception waiting for password input field")
-        return
+        raise Exception("Timeout exception waiting for password input field")
+        
     #elem = driver.find_element_by_xpath("//input[@id='password']")
     elem.click()
     elem.send_keys(password)
@@ -164,13 +173,13 @@ def asvz_signup(args,lesson_num,username,password):
         try:
             explicitWait("//button[@id='btnRegister']",condition="present",timeout=30)
         except:
-            print("Timeout exception: waiting for register button")
+            raise Exception("Timeout exception: waiting for register button")
 
     def f2():
         try:
             explicitWait("//button[@name='_eventId_proceed']",condition="present",timeout=30)
         except:
-            print("Timeout exception: waiting for accept button")
+            raise Exception("Timeout exception: waiting for accept button")
 
     p1 = Process(target=f1)
     p2 = Process(target=f2)
@@ -220,7 +229,7 @@ def asvz_signup(args,lesson_num,username,password):
 
         time.sleep(1)
     
-    print("Error: Did not reach signup page!")
+    raise Exception("Error: Did not reach signup page!")
 
             
 
