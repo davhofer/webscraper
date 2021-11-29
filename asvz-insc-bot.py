@@ -1,6 +1,3 @@
-# setup raspberry pi again, add command for discord bot to schedule asvz signup
-
-# install selenium
 import subprocess
 import sys
 
@@ -16,11 +13,11 @@ from multiprocessing import Process
 
 
 
-# make sure to download the right version of chromedriver for your version of Google Chrome, and specify the correct path to the file
+# make sure to download the right version of chromedriver for your version of Google Chrome, and place it in the same location as the script
 
 
 
-def main(args):
+def main(args,lesson_num,username,password):
     if "--help" in args:
         print("---- Help ----")
         print()
@@ -31,7 +28,6 @@ def main(args):
         print("optional arguments:")
         print("--demo               use this argument to display the automated webbrowser while the programm is running.")
         print("--raspbian           to run in production environment on raspberry pi.")
-        print("--specify-path       use this argument to be able to input a specific path to the chromedriver executable. otherwise, it will be looked for in the system path.")
         print("--help               for help.")
         print()
         return
@@ -44,12 +40,11 @@ def main(args):
     from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC 
 
-        
+    print()
+    print()
 
 
-    # chromedriver path on my personal linux laptop
-    CHROMEDRIVER_PATH_LINUX = "/usr/local/bin/chromedriver"
-
+    
     chrome_options = Options()
     if '--demo' not in args:
         chrome_options.add_argument("--headless")
@@ -63,14 +58,10 @@ def main(args):
         if '--raspbian' in args:
             subprocess.check_call(['sudo','apt-get','install','chromium-chromedriver'])
             driver = webdriver.Chrome(options=chrome_options)
-        elif '--specify-path' in args:
-            CHROMEDRIVER_PATH = input("Please specify the file path to chromedriver:")
-            print()
-            driver = webdriver.Chrome(options=chrome_options, executable_path=CHROMEDRIVER_PATH)
         else:
             driver = webdriver.Chrome(options=chrome_options, executable_path="./chromedriver")
     except Exception as e:
-        print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or you specified the correct path.")
+        print("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or specified in PATH.")
         return
 
     def explicitWait(xpath,condition="clickable",timeout=30):
@@ -81,15 +72,6 @@ def main(args):
             
         return WebDriverWait(driver, timeout).until(func((By.XPATH, xpath)))
 
-
-    print("")
-    print("")
-    print("Make sure to place the chromedriver file for your version of chrome in the same folder as this python script, or specify the path to it with --specify-path <path>")
-    print()
-    lesson_num = input("ASVZ lesson number: ")
-    username = input("NETHZ username: ")
-    password = getpass.getpass("Password: ")
-    print("")
     print("Setting up...")
     print()
 
@@ -243,48 +225,12 @@ def main(args):
             
 
 
-    # # either will have to accept some agreement or not (get redirected back to lesson page directly)
-    # try:
-    #     #time.sleep(7)
-    #     # accept button
 
-    #     elem = explicitWait("//button[@name='_eventId_proceed']")
-    #     #elem = driver.find_element_by_xpath("//button[@name='_eventId_proceed']")
-    #     elem.click()
-    #     #time.sleep(7)
+if __name__ == '__main__':
+    # driver code
+    lesson_num = input("ASVZ lesson number: ")
+    username = input("NETHZ username: ")
+    password = getpass.getpass("Password: ")
 
-    #     # wait until enrollment opens
-    #     if datetime.datetime.now() < t:
-    #         print("Waiting for enrollment to open...")
-    #     while datetime.datetime.now() < t:
-    #         time.sleep(0.7)
-
-    #     # register
-    #     elem = explicitWait("//button[@id='btnRegister']")
-    #     #elem = driver.find_element_by_xpath("//button[@id='btnRegister']")
-    #     elem.click()
-
-    #     print("Completed successfully, but please check manually if you got a spot.")
-
-    # except:
-    #     try:
-    #         # wait until enrollment opens
-    #         if datetime.datetime.now() < t:
-    #             print("Waiting for enrollment to open...")
-    #         while datetime.datetime.now() < t:
-    #             time.sleep(0.7)
-
-    #         # register
-    #         elem = explicitWait("//button[@id='btnRegister']")
-    #         #elem = driver.find_element_by_xpath("//button[@id='btnRegister']")
-    #         elem.click()
-    #         print(
-    #             "Completed successfully, but please check manually if you got a spot."
-    #         )
-
-    #     except:
-    #         print("ERROR")
-
-
-main(sys.argv)
+    main(sys.argv,lesson_num,username,password)
 
