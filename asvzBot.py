@@ -10,11 +10,88 @@ import re
 import getpass
 
 from multiprocessing import Process
+subprocess.check_call([sys.executable, "-m", "pip", "install", "selenium"])
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC 
 
 
 
 # make sure to download the right version of chromedriver for your version of Google Chrome, and place it in the same location as the script
 
+def get_driver(args):
+
+    chrome_options = Options()
+    if '--demo' not in args:
+        chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--incognito")
+    chrome_options.add_argument("--no-sandbox")
+
+    try:
+        if '--raspbian' in args:
+            subprocess.check_call(['sudo','apt-get','install','chromium-chromedriver'])
+            driver = webdriver.Chrome(options=chrome_options)
+        else:
+            driver = webdriver.Chrome(options=chrome_options, executable_path="./chromedriver")
+    except Exception as e:
+        raise Exception("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or specified in PATH.")
+        
+    return driver
+
+def driver_explicitWait(driver,xpath,condition="clickable",timeout=30):
+    # case: condition == "clickable"
+    func = EC.element_to_be_clickable
+    if condition == "present":
+        func = EC.presence_of_element_located
+        
+    return WebDriverWait(driver, timeout).until(func((By.XPATH, xpath)))
+
+
+def get_signup_time(lesson_num,driver):
+
+    weekdays = {
+        'Mo': 'mon',
+        'Di': 'tue',
+        'Mi': 'wed',
+        'Do': 'thu',
+        'Fr': 'fri',
+        'Sa': 'sat',
+        'So': 'sun'
+    }
+    
+    link = "https://schalter.asvz.ch/tn/lessons/<number>"
+    link = link.replace("<number>", lesson_num)
+
+    # goto main lesson page
+    driver.get(link)
+    
+    try:
+        elem = driver_explicitWait(driver,"//button[@class='btn btn-default ng-star-inserted']",condition="present")
+    except:
+        raise Exception("Timeout exception when waiting for lesson page")
+        
+    # get time when enrollment opens
+    html = driver.page_source
+    r = "Datum/Zeit.*\n.*"
+
+    ans0 = re.search(r, html)[0]
+    weekday = ans0.split(',')[0].split('>')[-1]
+    ans = ans0.split(", ")[1].split(" -")[0]
+
+    d = int(ans.split(".")[0]) - 1
+    mo = int(ans.split(".")[1])
+    y = int(ans.split(".")[2].split(" ")[0])
+    h = int(ans.split(".")[2].split(" ")[1].split(":")[0])
+    mi = int(ans.split(".")[2].split(" ")[1].split(":")[1])
+
+    t = datetime.datetime(
+        year=y, month=mo, day=d, hour=h, minute=mi
+    )
+
+    return f'{t.minute} {t.hour} {t.day} {t.month} {t.year} {weekdays[weekday]}'
 
 
 def asvz_signup(args,lesson_num,username,password):
@@ -41,45 +118,15 @@ def asvz_signup(args,lesson_num,username,password):
             raise Exception('Username and password must be specified!')
 
 
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "selenium"])
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.common.keys import Keys
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC 
-
-    print()
-    print()
-
+    
+    driver = get_driver(args)
 
     
-    chrome_options = Options()
-    if '--demo' not in args:
-        chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--incognito")
-    chrome_options.add_argument("--no-sandbox")
 
-    
-    
-    
-    try:
-        if '--raspbian' in args:
-            subprocess.check_call(['sudo','apt-get','install','chromium-chromedriver'])
-            driver = webdriver.Chrome(options=chrome_options)
-        else:
-            driver = webdriver.Chrome(options=chrome_options, executable_path="./chromedriver")
-    except Exception as e:
-        raise Exception("Please make sure that your chromedriver file is the right version for your browser, and is either in the same folder as the python script or specified in PATH.")
-        
 
     def explicitWait(xpath,condition="clickable",timeout=30):
-        # case: condition == "clickable"
-        func = EC.element_to_be_clickable
-        if condition == "present":
-            func = EC.presence_of_element_located
-            
-        return WebDriverWait(driver, timeout).until(func((By.XPATH, xpath)))
+        return driver_explicitWait(driver,xpath,condition,timeout)
+
 
     print("Setting up...")
     print()
@@ -90,17 +137,12 @@ def asvz_signup(args,lesson_num,username,password):
     # goto main lesson page
     driver.get(link)
     
-    # instead of:
-    #time.sleep(2)
-    # use:
     try:
-        # elem = driver.find_element_by_xpath(
-        # "//button[@class='btn btn-default ng-star-inserted']"
-    #)
+
         elem = explicitWait("//button[@class='btn btn-default ng-star-inserted']")
     except:
-        print("Timeout exception when waiting for lesson page")
-        return
+        raise Exception("Timeout exception when waiting for lesson page")
+        
     # get time when enrollment opens
     html = driver.page_source
     r = "Datum/Zeit.*\n.*"
@@ -119,18 +161,15 @@ def asvz_signup(args,lesson_num,username,password):
     # login
     
     elem.click()
-    #time.sleep(2)
 
     # SWITCH AAI
     try:
-        #elem = driver.find_element_by_xpath("//button[@name='provider']")
         elem = explicitWait("//button[@name='provider']")
     except:
         raise Exception("Timeout exception when waiting for SWITCH AAI")
         
 
     elem.click()
-    #time.sleep(2)
 
     # select institution
     try:
@@ -138,11 +177,9 @@ def asvz_signup(args,lesson_num,username,password):
     except:
         raise Exception("Timeout exception waiting for institution")
         
-    #elem = driver.find_element_by_xpath("//input[@id='userIdPSelection_iddtext']")
     elem.click()
     elem.send_keys("ETH Zürich")
     elem.send_keys(Keys.ENTER)
-    #time.sleep(2)
 
     # enter accoutn data
     try:
@@ -150,7 +187,6 @@ def asvz_signup(args,lesson_num,username,password):
     except:
         raise Exception("Timeout exception waiting for username input field")
         
-    #elem = driver.find_element_by_xpath("//input[@id='username']")
     elem.click()
     elem.send_keys(username)
 
@@ -159,12 +195,10 @@ def asvz_signup(args,lesson_num,username,password):
     except:
         raise Exception("Timeout exception waiting for password input field")
         
-    #elem = driver.find_element_by_xpath("//input[@id='password']")
     elem.click()
     elem.send_keys(password)
 
     elem.send_keys(Keys.ENTER)
-    #time.sleep(2)
 
 
 
@@ -181,6 +215,17 @@ def asvz_signup(args,lesson_num,username,password):
         except:
             raise Exception("Timeout exception: waiting for accept button")
 
+    def wait_then_signup(t):
+        if datetime.datetime.now() < t:
+            print("Waiting for enrollment to open...")
+        while datetime.datetime.now() < t:
+            time.sleep(0.5)
+
+        elem = explicitWait("//button[@id='btnRegister']")
+        elem.click()
+        print("Completed successfully, but please check manually if you got a spot.")
+
+
     p1 = Process(target=f1)
     p2 = Process(target=f2)
 
@@ -196,15 +241,7 @@ def asvz_signup(args,lesson_num,username,password):
             p2.terminate()
             p2.join()
 
-            if datetime.datetime.now() < t:
-                print("Waiting for enrollment to open...")
-            while datetime.datetime.now() < t:
-                time.sleep(0.5)
-
-            elem = explicitWait("//button[@id='btnRegister']")
-            elem.click()
-            print("Completed successfully, but please check manually if you got a spot.")
-
+            wait_then_signup(t)
             return
 
         if not p2.is_alive():
@@ -215,17 +252,7 @@ def asvz_signup(args,lesson_num,username,password):
             elem = explicitWait("//button[@name='_eventId_proceed']")
             elem.click()
 
-            if datetime.datetime.now() < t:
-                print("Waiting for enrollment to open...")
-            while datetime.datetime.now() < t:
-                time.sleep(0.7)
-
-            elem = explicitWait("//button[@id='btnRegister']")
-            elem.click()
-
-            print("Completed successfully, but please check manually if you got a spot.")
-
-            return 
+            wait_then_signup(t)
 
         time.sleep(1)
     
@@ -237,9 +264,10 @@ def asvz_signup(args,lesson_num,username,password):
 
 if __name__ == '__main__':
     # driver code
+    args = sys.argv
     lesson_num = input("ASVZ lesson number: ")
     username = input("NETHZ username: ")
     password = getpass.getpass("Password: ")
 
-    asvz_signup(sys.argv,lesson_num,username,password)
+    asvz_signup(args,lesson_num,username,password)
 
